@@ -5,7 +5,8 @@ use std::io::{Error,Read};
 
 use num_traits::FromPrimitive;
 
-use util::read_byte;
+use reader::SMFReader;
+use util::{read_amount, read_byte};
 
 /// An error that can occur trying to parse a midi message
 #[derive(Debug)]
@@ -163,7 +164,7 @@ impl MidiMessage {
                     Status::PitchBend |
                     Status::SongPositionPointer => { 2 }
 
-                    Status::SysExStart => { -2 }
+                    Status::SysExStart | Status::SysExEnd => { -2 }
 
                     Status::ProgramChange |
                     Status::ChannelAftertouch |
@@ -171,7 +172,6 @@ impl MidiMessage {
                     Status::SongSelect => { 1 }
 
                     Status::TuneRequest |
-                    Status::SysExEnd |
                     Status::TimingClock |
                     Status::Start |
                     Status::Continue |
@@ -188,7 +188,9 @@ impl MidiMessage {
     /// status `stat` has just been read
     pub fn next_message_given_status(stat: u8, reader: &mut dyn Read) -> Result<MidiMessage, MidiError> {
         let mut ret:Vec<u8> = Vec::with_capacity(3);
-        ret.push(stat);
+        if stat != 0xf7 {
+            ret.push(stat);
+        }
         match MidiMessage::data_bytes(stat) {
             0 => {}
             1 => { ret.push(read_byte(reader)?); }
@@ -196,12 +198,11 @@ impl MidiMessage {
                    ret.push(read_byte(reader)?); }
             -1 => { return Err(MidiError::OtherErr("Don't handle variable sized yet")); }
             -2 => {
-                // skip SysEx message
-                while {
-                    let byte = read_byte(reader)?;
-                    ret.push(byte);
-                    byte != Status::SysExEnd as u8
-                } {}
+                let len = match SMFReader::read_vtime(reader) {
+                    Ok(t) => { t }
+                    Err(_) => { return Err(MidiError::OtherErr("Couldn't read length of sysex message")); }
+                };
+                read_amount(reader,&mut ret,len as usize)?;
             }
             _ =>  { return Err(MidiError::InvalidStatus(stat)); }
         }
