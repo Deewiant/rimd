@@ -53,6 +53,7 @@ pub fn read_amount(reader: &mut dyn Read, dest: &mut Vec<u8>, amt: usize) -> Res
                 // read 0 before amount
                 ret = Err(Error::new(ErrorKind::InvalidData,
                                      "Stream ended before specified number of bytes could be read"));
+                break;
             },
             Ok(n) => len += n,
             Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
