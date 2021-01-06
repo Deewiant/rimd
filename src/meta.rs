@@ -162,7 +162,9 @@ impl MetaEvent {
             Err(_) => { return Err(MetaError::OtherErr("Couldn't read time for meta command")); }
         };
         let mut data = Vec::new();
-        read_amount(reader,&mut data,len as usize)?;
+        if command != MetaCommand::EndOfTrack {
+            read_amount(reader,&mut data,len as usize)?;
+        }
         Ok(MetaEvent{
             command: command,
             length: len,

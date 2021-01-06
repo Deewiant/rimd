@@ -116,11 +116,13 @@ impl SMFReader {
             let mut was_running = false;
             match SMFReader::next_event(reader,last,&mut was_running) {
                 Ok(event) => {
+                    let mut saw_end = false;
                     match event.event {
                         Event::Meta(ref me) => {
                             match me.command {
                                 MetaCommand::CopyrightNotice => copyright = Some(latin1_decode(&me.data)),
                                 MetaCommand::SequenceOrTrackName => name = Some(latin1_decode(&me.data)),
+                                MetaCommand::EndOfTrack => saw_end = true,
                                 _ => {}
                             }
                         },
@@ -132,7 +134,7 @@ impl SMFReader {
                         read_so_far -= 1;
                     }
                     res.push(event);
-                    if read_so_far == len {
+                    if read_so_far == len || saw_end {
                         break;
                     }
                     if read_so_far > len {
